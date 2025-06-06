@@ -1,26 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { styles as globalStyles } from '../styles/styles';
-import { playSound2, playSound, playSound3, playSound4 } from '../utils/audioUtils';
 import * as storage from '../utils/storage';
-
-const SOUNDS = [
-  { id: 'sound1', title: '𝄃𝄃𝄂𝄂𝄀𝄁𝄃𝄂𝄂𝄃', play: playSound },
-  { id: 'sound2', title: '(╥﹏╥)', play: playSound2 },
-  { id: 'sound3', title: '𓆝 𓆟 𓆞 𓆝', play: playSound3 },
-  { id: 'sound4', title: '⫘⫘⫘⫘', play: playSound4 }
-];
+import { SOUNDS } from '../constants/sounds';
 
 const SonsScreen = () => {
   const [currentPlaying, setCurrentPlaying] = useState(null);
+  const [currentSound, setCurrentSound] = useState(null);
   const [favorites, setFavorites] = useState([]);
   const [volume, setVolume] = useState(1.0);
-  const [lastPlayed, setLastPlayed] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Chargement initial des données
   useEffect(() => {
     loadData();
+    return () => {
+      if (currentSound) {
+        currentSound.unloadAsync();
+      }
+    };
   }, []);
 
   const loadData = async () => {
@@ -32,10 +29,6 @@ const SonsScreen = () => {
       // Charger le volume
       const savedVolume = await storage.getVolume();
       setVolume(savedVolume);
-
-      // Charger le dernier son joué
-      const lastPlayedSound = await storage.getLastPlayed();
-      setLastPlayed(lastPlayedSound);
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
     } finally {
@@ -46,19 +39,31 @@ const SonsScreen = () => {
   const handlePlaySound = async (sound) => {
     try {
       if (currentPlaying === sound.id) {
-        setCurrentPlaying(null);
+        if (currentSound) {
+          await currentSound.pauseAsync();
+          setCurrentPlaying(null);
+          setCurrentSound(null);
+        }
       } else {
-        await sound.play();
-        setCurrentPlaying(sound.id);
+        if (currentSound) {
+          await currentSound.stopAsync();
+          await currentSound.unloadAsync();
+        }
         
-        // Sauvegarder comme dernier son joué
-        const soundInfo = {
-          id: sound.id,
-          title: sound.title,
-          timestamp: new Date().toISOString()
-        };
-        await storage.saveLastPlayed(soundInfo);
-        setLastPlayed(soundInfo);
+        const newSound = await sound.play();
+        if (newSound) {
+          await newSound.setVolumeAsync(volume);
+          setCurrentSound(newSound);
+          setCurrentPlaying(sound.id);
+          
+          // Sauvegarder comme dernier son joué
+          const soundInfo = {
+            id: sound.id,
+            title: sound.title,
+            timestamp: new Date().toISOString()
+          };
+          await storage.saveLastPlayed(soundInfo);
+        }
       }
     } catch (error) {
       console.error('Erreur lors de la lecture du son:', error);
@@ -84,6 +89,10 @@ const SonsScreen = () => {
     try {
       await storage.saveVolume(newVolume);
       setVolume(newVolume);
+
+      if (currentSound) {
+        await currentSound.setVolumeAsync(newVolume);
+      }
     } catch (error) {
       console.error('Erreur lors du changement de volume:', error);
       Alert.alert('Erreur', 'Impossible de sauvegarder le volume.');
@@ -109,24 +118,6 @@ const SonsScreen = () => {
           <Text style={styles.mainTitle}>SONS</Text>
           <View style={styles.separator} />
 
-          {lastPlayed && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>DERNIER SON JOUÉ</Text>
-              <TouchableOpacity 
-                style={[
-                  styles.soundButton,
-                  currentPlaying === lastPlayed.id && styles.playingButton
-                ]}
-                onPress={() => {
-                  const sound = SOUNDS.find(s => s.id === lastPlayed.id);
-                  if (sound) handlePlaySound(sound);
-                }}
-              >
-                <Text style={styles.soundText}>{lastPlayed.title}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>TOUS LES SONS</Text>
             {SOUNDS.map(sound => (
@@ -150,34 +141,6 @@ const SonsScreen = () => {
               </TouchableOpacity>
             ))}
           </View>
-
-          {favorites.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>FAVORIS</Text>
-              {favorites.map(fav => {
-                const sound = SOUNDS.find(s => s.id === fav.id);
-                if (!sound) return null;
-                return (
-                  <TouchableOpacity 
-                    key={fav.id}
-                    style={[
-                      styles.soundButton,
-                      currentPlaying === sound.id && styles.playingButton
-                    ]}
-                    onPress={() => handlePlaySound(sound)}
-                  >
-                    <Text style={styles.soundText}>{fav.title}</Text>
-                    <TouchableOpacity 
-                      style={styles.favoriteButton}
-                      onPress={() => toggleFavorite(sound)}
-                    >
-                      <Text style={styles.favoriteIcon}>★</Text>
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>VOLUME</Text>
