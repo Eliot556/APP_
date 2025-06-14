@@ -76,6 +76,13 @@ const Navigation = ({ currentPage, setCurrentPage }) => {
           >
             <Text style={styles.menuSectionTitle}>SORTIES</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.menuSection}
+            onPress={() => navigateTo('api')}
+          >
+            <Text style={styles.menuSectionTitle}>API</Text>
+          </TouchableOpacity>
         </ScrollView>
       </Animated.View>
     </>

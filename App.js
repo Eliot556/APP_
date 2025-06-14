@@ -8,6 +8,7 @@ import SonsScreen from './src/screens/SonsScreen';
 import SortiesScreen from './src/screens/SortiesScreen';
 import Navigation from './src/components/Navigation';
 import { initializeAudio } from './src/utils/audioUtils';
+import ApiScreen from './src/screens/ApiScreen';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -26,6 +27,8 @@ export default function App() {
         return <SonsScreen setCurrentPage={setCurrentPage} />;
       case 'sorties':
         return <SortiesScreen setCurrentPage={setCurrentPage} />;
+      case 'api':
+        return <ApiScreen />;
       default:
         return <HomeScreen setCurrentPage={setCurrentPage} />;
     }
